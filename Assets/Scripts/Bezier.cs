@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -13,6 +14,9 @@ public class Bezier : MonoBehaviour {
 
     private List<Vector3> input;
     private List<Vector3> result;
+    private Vector3 nStartPoint;
+    private RectTransform rect;
+
     bool bStartDraw = false;
     Vector3 vLastMousePosition = Vector3.zero;
     List<Vector3> lMousePosRecord; 
@@ -26,9 +30,10 @@ public class Bezier : MonoBehaviour {
         lMousePosRecord = new List<Vector3>();
         lineRender = line.GetComponent<LineRenderer>();
         showStatus = txtStatus.GetComponent<Text>();
-        //测试背景图片层级
-        //objectScreen.transform.SetAsFirstSibling();
-        //line.transform.SetAsFirstSibling();
+
+        rect = GetComponent<RectTransform>();
+        nStartPoint.x = (transform.parent.GetComponent<RectTransform>().rect.width - rect.rect.width)/2;
+        nStartPoint.y = (transform.parent.GetComponent<RectTransform>().rect.height - rect.rect.height)/2;
     }
     int nInputStatus = 0; //0-get  1-draw 2-none
 	// Update is called once per frame
@@ -69,6 +74,7 @@ public class Bezier : MonoBehaviour {
     {
         if (nInputStatus != 1) return;
         if (input.Count == 0) return;
+        result.Clear();
 
         for (int i = 0; i < 200; i++)
         {
@@ -84,7 +90,7 @@ public class Bezier : MonoBehaviour {
         lineRender.enabled = true;
 
         input.Clear();
-        result.Clear();
+       //result.Clear();
     }
     void OnDoNothing()
     {
@@ -114,11 +120,42 @@ public class Bezier : MonoBehaviour {
             bStartDraw = true;
             //ChangeStatus();
         }
+        //保存
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            if (result.Count > 0)
+            {
+                Debug.Log("Save");
+                FileStream file = File.Create("hello.txt");
+                string str = "";
+                for (int i = 0; i < result.Count - 1; i++)
+                {
+                    Vector3 point = ChangeToTargetPoint(result[i]);
+                    //这里角度还有问题，需要重复
+                    str += System.String.Format("{0:F1},{1:F1},{2:N0},", point.x, point.y, Vector3.Angle(Vector3.right, result[i + 1] - result[i]));
+                }
 
+                byte[] data = System.Text.Encoding.ASCII.GetBytes(str);
+                file.Write(data, 0, data.Length);
+                file.Close();
+            }
+        }
         //OnGetInput();
         DrawLine();
 
 
+    }
+    Vector3 ChangeToTargetPoint(Vector3 src)
+    {
+        //根据屏幕分辨率转换
+        Vector3 screenDest = Camera.main.WorldToScreenPoint(src) - nStartPoint;
+        Debug.Log(nStartPoint.ToString());
+        Debug.Log(Camera.main.WorldToScreenPoint(src).ToString() + " : " + rect.rect.width);
+        screenDest.x = (screenDest.x / rect.rect.width) * 1920;
+        screenDest.y = (screenDest.y / rect.rect.height) * 1080;
+        screenDest.z = 0;
+        
+        return screenDest;
     }
     void DrawLine()
     {
